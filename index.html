@@ -19,6 +19,7 @@
 <link rel="apple-touch-icon" sizes="167x167"       href="voltguard/icons/icon-167x167.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://js.stripe.com/v3/"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root {
   --bg:        #111111;
@@ -1665,6 +1666,24 @@ const STRIPE_CFG = {
   portalLink  : 'REPLACE_WITH_YOUR_STRIPE_PORTAL_LINK',
 };
 
+// ── EmailJS Configuration ─────────────────────────────────────
+// Sign up free at emailjs.com → get these 3 values → paste below
+const EMAIL_CFG = {
+  publicKey      : 'REPLACE_WITH_EMAILJS_PUBLIC_KEY',    // Account → API Keys
+  serviceId      : 'REPLACE_WITH_EMAILJS_SERVICE_ID',    // Email Services tab
+  ownerTemplateId: 'REPLACE_WITH_OWNER_TEMPLATE_ID',     // New subscriber alert → you
+  welcomeTemplateId: 'REPLACE_WITH_WELCOME_TEMPLATE_ID', // Welcome email → subscriber
+  ownerEmail     : 'REPLACE_WITH_YOUR_EMAIL',            // Where YOU get notified
+};
+
+// Init EmailJS (runs once, only when keys are configured)
+(function initEmailJS() {
+  if (!EMAIL_CFG.publicKey.startsWith('REPLACE')) {
+    emailjs.init({ publicKey: EMAIL_CFG.publicKey });
+    console.log('EmailJS ready');
+  }
+})();
+
 function doSubscribe() {
   if (!S.user) { toast('Please sign in first','error'); return; }
   if (STRIPE_CFG.paymentLink.startsWith('REPLACE')) {
@@ -1712,6 +1731,61 @@ function showPaymentSuccess() {
     <button onclick="this.parentElement.remove();enterApp()" style="background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;border-radius:16px;padding:18px 40px;font-size:16px;font-weight:900;font-family:var(--f);cursor:pointer;box-shadow:0 4px 24px rgba(255,106,0,.55);margin-top:6px">Start Scanning ⚡</button>`;
   document.body.appendChild(el);
   if (navigator.vibrate) navigator.vibrate([60,30,90,30,150]);
+
+  // Fire email notifications (only runs if EmailJS is configured)
+  sendSubscriptionEmails();
+}
+
+// ── Email Notification Engine ─────────────────────────────────
+async function sendSubscriptionEmails() {
+  if (!S.user || EMAIL_CFG.publicKey.startsWith('REPLACE')) return;
+
+  const now       = new Date();
+  const dateStr   = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const timeStr   = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const trialEnd  = new Date(now.getTime() + 3*86400000)
+                      .toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  // Shared template variables
+  const baseParams = {
+    user_name       : S.user.name    || 'New Subscriber',
+    user_email      : S.user.email   || '',
+    user_company    : S.user.company || 'Not provided',
+    sub_date        : dateStr,
+    sub_time        : timeStr,
+    trial_end_date  : trialEnd,
+    plan_name       : 'No Sparks Pro',
+    plan_price      : '$3.99/mo',
+    app_url         : window.location.origin + window.location.pathname,
+  };
+
+  // 1. Notify YOU (owner) — new subscriber alert
+  try {
+    await emailjs.send(EMAIL_CFG.serviceId, EMAIL_CFG.ownerTemplateId, {
+      ...baseParams,
+      to_email    : EMAIL_CFG.ownerEmail,
+      to_name     : 'No Sparks Team',
+      subject     : `⚡ New subscriber: ${S.user.name} — $3.99/mo`,
+      message     : `${S.user.name} (${S.user.email}) just subscribed to No Sparks Pro on ${dateStr} at ${timeStr}. Their 3-day trial ends on ${trialEnd}.`,
+    });
+    console.log('✅ Owner notification sent');
+  } catch(e) {
+    console.warn('Owner email failed:', e);
+  }
+
+  // 2. Welcome email to the NEW SUBSCRIBER
+  try {
+    await emailjs.send(EMAIL_CFG.serviceId, EMAIL_CFG.welcomeTemplateId, {
+      ...baseParams,
+      to_email    : S.user.email,
+      to_name     : S.user.name || 'there',
+      subject     : '⚡ Welcome to No Sparks Code Corrections Pro!',
+      message     : `Hi ${S.user.name || 'there'},\n\nYour No Sparks Code Corrections Pro subscription is now active! You have unlimited AI-powered NEC violation scanning, the full NEC 2023 code database, PDF exports, and scan history.\n\nYour 3-day free trial runs until ${trialEnd}. After that, $3.99/mo — cancel anytime from the Profile tab.\n\nHead back to the app and start scanning:\n${window.location.origin + window.location.pathname}\n\nStay safe on the job site,\nNo Sparks Code Corrections`,
+    });
+    console.log('✅ Welcome email sent to', S.user.email);
+  } catch(e) {
+    console.warn('Welcome email failed:', e);
+  }
 }
 
 // ─────────────────────────────────────────────
