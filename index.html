@@ -1,0 +1,1773 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1A1A1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="No Sparks">
+<meta name="description" content="No Sparks Code Corrections — AI-powered NEC violation inspector for electricians & contractors">
+<title>No Sparks Code Corrections</title>
+<link rel="manifest" href="voltguard/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32"   href="voltguard/icons/icon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16"   href="voltguard/icons/icon-16x16.png">
+<link rel="icon" type="image/x-icon"              href="voltguard/icons/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180"       href="voltguard/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152"       href="voltguard/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="167x167"       href="voltguard/icons/icon-167x167.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+:root {
+  --bg:        #111111;
+  --s1:        #1E1E1E;
+  --s2:        #252525;
+  --s3:        #2E2E2E;
+  --border:    #363636;
+  --or:        #FF6A00;
+  --or2:       #FF8500;
+  --or3:       #D85500;
+  --orglow:    rgba(255,106,0,.28);
+  --txt:       #F0F0F0;
+  --txt2:      #AAAAAA;
+  --txt3:      #555555;
+  --ok:        #22C55E;
+  --danger:    #EF4444;
+  --warn:      #F59E0B;
+  --info:      #3B82F6;
+  --r:         14px;
+  --rl:        20px;
+  --rxl:       26px;
+  --sc:        0 4px 24px rgba(0,0,0,.45),0 1px 4px rgba(0,0,0,.3);
+  --sr:        0 8px 32px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4);
+  --sor:       0 4px 22px rgba(255,106,0,.4);
+  --f:         'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%;height:100%}
+body{font-family:var(--f);background:var(--bg);color:var(--txt);height:100%;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+img{max-width:100%;display:block}
+button{cursor:pointer;border:none;outline:none;font-family:var(--f)}
+input,textarea{font-family:var(--f);outline:none}
+a{color:var(--or);text-decoration:none}
+
+/* ── ANIMATIONS ─────────────────────────────── */
+@keyframes flyIn{
+  0%{transform:translateY(-110vh) rotate(-12deg) scale(.4);opacity:0;filter:blur(10px)}
+  62%{transform:translateY(18px) rotate(4deg) scale(1.09);opacity:1;filter:blur(0)}
+  78%{transform:translateY(-10px) rotate(-2deg) scale(.96)}
+  90%{transform:translateY(5px) rotate(.5deg) scale(1.02)}
+  100%{transform:translateY(0) rotate(0) scale(1);opacity:1}
+}
+@keyframes flyOut{
+  0%{transform:translate(0,0) scale(1) rotate(0);opacity:1;filter:blur(0)}
+  18%{transform:translate(-25px,12px) scale(1.18) rotate(-6deg)}
+  100%{transform:translate(145vw,-25vh) scale(.2) rotate(28deg);opacity:0;filter:blur(14px)}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,106,0,.4)}50%{box-shadow:0 0 0 14px rgba(255,106,0,0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+@keyframes scanLine{0%{top:0}100%{top:calc(100% - 2px)}}
+@keyframes boltPulse{0%,100%{opacity:1;filter:brightness(1)}50%{opacity:.5;filter:brightness(2.5)}}
+@keyframes dotDot{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+/* ── LAYOUT ──────────────────────────────────── */
+#root{width:100vw;height:100vh;height:-webkit-fill-available;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:opacity .38s ease,transform .38s ease}
+.screen.off{opacity:0;pointer-events:none;transform:scale(.96)}
+.screen.right{transform:translateX(100%);opacity:0;pointer-events:none}
+
+/* ── BUTTONS ─────────────────────────────────── */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border-radius:var(--r);font-size:15px;font-weight:700;letter-spacing:.3px;transition:all .2s;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .2s}
+.btn:active::after{background:rgba(255,255,255,.09)}
+.btn-primary{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;box-shadow:var(--sor)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(255,106,0,.55)}
+.btn-primary:active{transform:translateY(0)}
+.btn-ghost{background:transparent;color:var(--or);width:auto;font-size:14px;font-weight:700;padding:8px 4px}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--txt);border-radius:var(--r);padding:13px;font-size:14px;font-weight:600;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
+.btn-outline:hover{border-color:var(--or);color:var(--or)}
+
+/* ── FORM ────────────────────────────────────── */
+.flabel{display:block;font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:7px;letter-spacing:.4px;text-transform:uppercase}
+.finput{width:100%;background:var(--s3);border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;color:var(--txt);font-size:15px;transition:border-color .2s,box-shadow .2s}
+.finput:focus{border-color:var(--or);box-shadow:0 0 0 3px var(--orglow)}
+.finput::placeholder{color:var(--txt3)}
+.fgroup{margin-bottom:16px}
+
+/* ── ▌ LOGIN SCREEN ──────────────────────────── */
+#scr-login{background:radial-gradient(ellipse at 50% -5%,#2d1500 0%,#111 65%);align-items:center;justify-content:center;padding:28px 24px;overflow-y:auto}
+.login-wrap{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;gap:28px}
+
+/* Logo */
+.logo-shell{display:flex;flex-direction:column;align-items:center;gap:14px;animation:flyIn 1.05s cubic-bezier(.34,1.56,.64,1) forwards}
+.logo-shell.fly-out{animation:flyOut .72s cubic-bezier(.55,0,.85,.06) forwards !important}
+.logo-box{width:88px;height:88px;border-radius:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-box::before{content:'';position:absolute;inset:0;background:linear-gradient(145deg,rgba(255,255,255,.22) 0%,transparent 55%)}
+/* ── DROP YOUR LOGO FILE (logo.png) IN THE SAME FOLDER AND REPLACE THE SVG BELOW ── */
+.logo-box img{width:88px;height:88px;object-fit:cover;border-radius:26px;position:relative;z-index:1}
+.logo-bolt{width:48px;height:48px;fill:white;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));animation:boltPulse 2.5s ease-in-out infinite}
+.logo-name h1{font-size:30px;font-weight:900;letter-spacing:-.5px;background:linear-gradient(135deg,#fff 30%,var(--or2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center}
+.logo-name p{font-size:11px;color:var(--txt2);letter-spacing:1.2px;text-align:center;margin-top:2px;text-transform:uppercase}
+.trial-pill{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;font-size:11px;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:.6px;text-transform:uppercase;box-shadow:var(--sor);margin-top:4px}
+
+/* Auth Card */
+.auth-card{width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--rxl);padding:30px 26px;box-shadow:var(--sr);animation:fadeUp .6s ease .25s both}
+.auth-card h2{font-size:22px;font-weight:900;margin-bottom:4px}
+.auth-sub{color:var(--txt2);font-size:13px;margin-bottom:22px}
+.forgot-row{text-align:right;margin:-8px 0 14px}
+.forgot-row button{background:none;border:none;color:var(--or);font-size:12px;font-weight:700;font-family:var(--f);cursor:pointer}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--txt2)}
+.auth-switch button{background:none;border:none;color:var(--or);font-weight:800;font-size:13px;font-family:var(--f);cursor:pointer;margin-left:4px}
+
+/* ── ▌ SIGNUP SCREEN ─────────────────────────── */
+#scr-signup{background:radial-gradient(ellipse at 50% -5%,#2d1500 0%,#111 65%);overflow-y:auto;align-items:center;justify-content:flex-start;padding:max(24px,env(safe-area-inset-top)) 24px 32px}
+.signup-wrap{width:100%;max-width:420px}
+.back-row{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.back-btn{width:40px;height:40px;background:var(--s2);border:1.5px solid var(--border);border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--txt)}
+.back-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2}
+.trial-info-box{background:rgba(255,106,0,.08);border:1.5px solid rgba(255,106,0,.25);border-radius:var(--r);padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start}
+.terms-note{font-size:12px;color:var(--txt3);line-height:1.5;margin-bottom:16px}
+.terms-note span{color:var(--or);font-weight:600}
+
+/* ── ▌ PAYWALL SCREEN ───────────────────────── */
+#scr-paywall{background:var(--bg);align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.pay-wrap{width:100%;max-width:420px;text-align:center}
+.pay-icon{width:80px;height:80px;background:var(--s2);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;border:1.5px solid var(--border)}
+.price-card{background:var(--s1);border:2px solid var(--or);border-radius:var(--rxl);padding:26px;margin:22px 0;box-shadow:var(--sor);position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--or),var(--or2))}
+.price-big{font-size:52px;font-weight:900;color:var(--or);line-height:1}
+.price-big sup{font-size:26px;vertical-align:super}
+.price-period{color:var(--txt2);font-size:13px;margin-top:4px}
+.feat-list{list-style:none;margin-top:18px;text-align:left}
+.feat-list li{display:flex;align-items:flex-start;gap:10px;padding:9px 0;font-size:13px;border-bottom:1px solid var(--s3)}
+.feat-list li:last-child{border-bottom:none}
+.chk{width:18px;height:18px;background:var(--or);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+
+/* ── ▌ MAIN APP ──────────────────────────────── */
+#scr-app{background:var(--bg);flex-direction:column}
+
+/* Header */
+.app-hdr{padding:10px 18px;padding-top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;background:var(--s1);border-bottom:1px solid var(--border);box-shadow:0 2px 14px rgba(0,0,0,.35);flex-shrink:0;z-index:50}
+.hdr-logo{display:flex;align-items:center;gap:10px}
+.hdr-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hdr-logo h2{font-size:18px;font-weight:900;background:linear-gradient(135deg,#fff,var(--or2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-actions{display:flex;gap:8px}
+.hdr-btn{width:38px;height:38px;background:var(--s3);border:1.5px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--txt2)}
+.hdr-btn svg{width:18px;height:18px}
+.ntf-dot::after{content:'';position:absolute;top:-2px;right:-2px;width:9px;height:9px;background:var(--or);border-radius:50%;border:2px solid var(--s1)}
+
+/* Tab panels */
+.tab-body{flex:1;overflow:hidden;position:relative}
+.tab-pane{position:absolute;inset:0;overflow-y:auto;padding:18px 16px;padding-bottom:calc(90px + env(safe-area-inset-bottom));display:none;-webkit-overflow-scrolling:touch}
+.tab-pane.on{display:block}
+
+/* Bottom Nav */
+.bnav{display:flex;background:var(--s1);border-top:1px solid var(--border);box-shadow:0 -4px 24px rgba(0,0,0,.35);padding-bottom:max(10px,env(safe-area-inset-bottom));flex-shrink:0;z-index:100}
+.nitem{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;background:none;border:none;color:var(--txt3);font-size:10px;font-weight:700;letter-spacing:.3px;transition:color .2s;position:relative;gap:5px;font-family:var(--f)}
+.nitem svg{width:22px;height:22px;transition:transform .2s}
+.nitem.on{color:var(--or)}
+.nitem.on svg{transform:scale(1.1)}
+.nitem.on::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:34px;height:3px;background:linear-gradient(90deg,var(--or),var(--or2));border-radius:0 0 4px 4px}
+/* Center FAB nav item */
+.nitem.fab{top:-18px}
+.nitem.fab .fab-ring{width:58px;height:58px;background:linear-gradient(135deg,var(--or),var(--or2));border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 22px rgba(255,106,0,.55),0 2px 8px rgba(0,0,0,.35);border:3px solid var(--bg)}
+.nitem.fab svg{width:28px;height:28px}
+.nitem.fab.on::before{display:none}
+.nitem.fab.on .fab-ring{box-shadow:0 6px 30px rgba(255,106,0,.7),0 2px 8px rgba(0,0,0,.35)}
+
+/* ── CARDS ───────────────────────────────────── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--rl);padding:20px;box-shadow:var(--sc);margin-bottom:12px}
+.card-r{background:var(--s2);border:1px solid var(--border);border-radius:var(--rl);padding:20px;box-shadow:var(--sr);margin-bottom:12px}
+.sec-title{font-size:20px;font-weight:900;margin-bottom:3px}
+.sec-sub{color:var(--txt2);font-size:13px;margin-bottom:16px}
+
+/* ── ▌ SCAN TAB ──────────────────────────────── */
+.drop-zone{background:var(--s1);border:2px dashed var(--border);border-radius:var(--rxl);padding:30px 20px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:14px;position:relative;overflow:hidden}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--or);background:rgba(255,106,0,.05)}
+.drop-zone.loaded{padding:0;border-style:solid;border-color:var(--or)}
+.dz-inner{display:flex;flex-direction:column;align-items:center;gap:13px}
+.dz-icon{width:72px;height:72px;background:linear-gradient(135deg,rgba(255,106,0,.12),rgba(255,133,0,.07));border-radius:20px;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,106,0,.3)}
+.dz-icon svg{width:36px;height:36px}
+.scan-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sopt{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;display:flex;align-items:center;gap:11px;color:var(--txt);font-size:14px;font-weight:700;transition:all .2s;font-family:var(--f)}
+.sopt:hover{border-color:var(--or);transform:translateY(-1px)}
+.sopt-ico{width:40px;height:40px;background:linear-gradient(135deg,rgba(255,106,0,.14),rgba(255,133,0,.07));border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sopt-ico svg{width:20px;height:20px}
+
+/* Preview */
+#img-prev{width:100%;display:none;position:relative}
+#prev-img{width:100%;max-height:300px;object-fit:cover;border-radius:calc(var(--rxl) - 2px)}
+.prev-ovl{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,.82));border-radius:calc(var(--rxl) - 2px);display:flex;align-items:flex-end;padding:14px}
+
+/* Analyze button */
+#btn-analyze{display:none;margin-bottom:14px}
+.analyze-btn{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border-radius:var(--rl);padding:18px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;box-shadow:var(--sor);transition:all .2s;font-family:var(--f);animation:pulse 2s infinite;border:none;cursor:pointer}
+.analyze-btn:hover{transform:translateY(-2px)}
+.analyze-btn:active{transform:translateY(0)}
+
+/* Scanning overlay */
+#scanning{display:none;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--rxl);padding:28px 20px;text-align:center;margin-bottom:14px}
+.scan-anim{width:100%;height:190px;background:var(--s3);border-radius:var(--r);overflow:hidden;position:relative;margin-bottom:18px}
+.scan-ln{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--or),var(--or2),var(--or),transparent);box-shadow:0 0 22px var(--or);animation:scanLine 1.4s ease-in-out infinite alternate}
+.scan-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,106,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,106,0,.04) 1px,transparent 1px);background-size:22px 22px}
+.sc-tl{position:absolute;top:10px;left:10px;width:22px;height:22px;border-top:2px solid var(--or);border-left:2px solid var(--or)}
+.sc-tr{position:absolute;top:10px;right:10px;width:22px;height:22px;border-top:2px solid var(--or);border-right:2px solid var(--or)}
+.sc-bl{position:absolute;bottom:10px;left:10px;width:22px;height:22px;border-bottom:2px solid var(--or);border-left:2px solid var(--or)}
+.sc-br{position:absolute;bottom:10px;right:10px;width:22px;height:22px;border-bottom:2px solid var(--or);border-right:2px solid var(--or)}
+.scan-prog{width:100%;height:4px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:10px}
+.scan-prog-bar{height:100%;background:linear-gradient(90deg,var(--or),var(--or2));border-radius:2px;width:0%;transition:width .6s ease}
+
+/* Results */
+#results{display:none}
+.score-row{display:flex;align-items:center;gap:16px;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:14px;box-shadow:var(--sc)}
+.score-ring{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:22px;font-weight:900;flex-shrink:0}
+.score-ring.g{background:radial-gradient(circle,rgba(34,197,94,.12),transparent);border:3px solid var(--ok);color:var(--ok)}
+.score-ring.w{background:radial-gradient(circle,rgba(245,158,11,.12),transparent);border:3px solid var(--warn);color:var(--warn)}
+.score-ring.b{background:radial-gradient(circle,rgba(239,68,68,.12),transparent);border:3px solid var(--danger);color:var(--danger)}
+.score-lbl{font-size:9px;font-weight:800;letter-spacing:.6px}
+/* ── ZONE SUMMARY BAR ── */
+.zone-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.zone-pill{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:12px;font-size:11px;font-weight:800;border:1.5px solid}
+.zone-pill.pass{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25);color:var(--ok)}
+.zone-pill.fail{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.25);color:#EF4444}
+.zone-pill.warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25);color:#F59E0B}
+.zone-pill.skip{background:var(--s2);border-color:var(--border);color:var(--txt3)}
+.zone-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.zone-pill.pass .zone-dot{background:var(--ok)}
+.zone-pill.fail .zone-dot{background:#EF4444}
+.zone-pill.warn .zone-dot{background:#F59E0B}
+.zone-pill.skip .zone-dot{background:var(--txt3)}
+/* ── INSPECTION CARD ── */
+.insp-card{background:var(--s1);border-radius:var(--rxl);overflow:hidden;margin-bottom:14px;box-shadow:var(--sr);border:1.5px solid var(--border)}
+.insp-card.sev-CRITICAL{border-color:rgba(239,68,68,.35)}
+.insp-card.sev-MAJOR{border-color:rgba(245,158,11,.35)}
+.insp-card.sev-MINOR{border-color:rgba(59,130,246,.35)}
+.insp-sev-bar{padding:9px 16px;font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.insp-sev-bar.CRITICAL{background:linear-gradient(90deg,rgba(239,68,68,.18),rgba(239,68,68,.06));color:#EF4444;border-bottom:1px solid rgba(239,68,68,.2)}
+.insp-sev-bar.MAJOR{background:linear-gradient(90deg,rgba(245,158,11,.18),rgba(245,158,11,.06));color:#F59E0B;border-bottom:1px solid rgba(245,158,11,.2)}
+.insp-sev-bar.MINOR{background:linear-gradient(90deg,rgba(59,130,246,.18),rgba(59,130,246,.06));color:#3B82F6;border-bottom:1px solid rgba(59,130,246,.2)}
+.insp-zone-tag{padding:5px 16px 0;font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.7px;text-transform:uppercase;margin-top:8px}
+.insp-section{padding:12px 16px;border-bottom:1px solid var(--s3)}
+.insp-section:last-child{border-bottom:none}
+.insp-section-lbl{font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.insp-section-lbl.detected{color:#F59E0B}
+.insp-section-lbl.reference{color:var(--or)}
+.insp-section-lbl.remedy{color:var(--ok)}
+.insp-nec-ref{display:inline-flex;align-items:center;gap:6px;background:rgba(255,106,0,.12);color:var(--or);border:1px solid rgba(255,106,0,.28);border-radius:8px;padding:5px 12px;font-size:13px;font-weight:900;letter-spacing:.4px;margin-bottom:8px}
+.insp-desc{font-size:13px;color:var(--txt2);line-height:1.58}
+.remedy-steps{margin-top:4px;display:flex;flex-direction:column;gap:6px}
+.remedy-step{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--txt2);line-height:1.5}
+.step-num{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--ok),#16A34A);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.location-tag{display:inline-flex;align-items:center;gap:5px;background:var(--s3);border-radius:7px;padding:4px 10px;font-size:11px;color:var(--txt3);font-weight:700;margin-bottom:8px}
+/* ── UNVERIFIABLE WARNING ── */
+.unverify-card{background:rgba(245,158,11,.05);border:1.5px solid rgba(245,158,11,.28);border-radius:var(--rl);padding:16px;margin-bottom:14px}
+.unverify-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#F59E0B;margin-bottom:10px}
+.unverify-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--txt2);padding:5px 0;border-bottom:1px solid rgba(245,158,11,.1);line-height:1.45}
+.unverify-item:last-child{border-bottom:none}
+/* ── COMPLIANT ── */
+.pos-card{background:rgba(34,197,94,.05);border:1.5px solid rgba(34,197,94,.2);border-radius:var(--rl);padding:16px;margin-bottom:12px}
+.pos-card h4{color:var(--ok);font-size:14px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.pos-item{font-size:13px;color:var(--txt2);padding:3px 0;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
+/* ── SCORE ── */
+.score-row{display:flex;align-items:center;gap:16px;background:var(--s1);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:14px;box-shadow:var(--sc)}
+.score-ring{width:70px;height:70px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:22px;font-weight:900;flex-shrink:0}
+.score-ring.g{background:radial-gradient(circle,rgba(34,197,94,.12),transparent);border:3px solid var(--ok);color:var(--ok)}
+.score-ring.w{background:radial-gradient(circle,rgba(245,158,11,.12),transparent);border:3px solid var(--warn);color:var(--warn)}
+.score-ring.b{background:radial-gradient(circle,rgba(239,68,68,.12),transparent);border:3px solid var(--danger);color:var(--danger)}
+.score-lbl{font-size:9px;font-weight:800;letter-spacing:.6px}
+/* badge kept for history tab */
+.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;flex-shrink:0}
+.badge.CRITICAL{background:rgba(239,68,68,.14);color:#EF4444;border:1px solid rgba(239,68,68,.28)}
+.badge.MAJOR{background:rgba(245,158,11,.14);color:#F59E0B;border:1px solid rgba(245,158,11,.28)}
+.badge.MINOR{background:rgba(59,130,246,.14);color:#3B82F6;border:1px solid rgba(59,130,246,.28)}
+
+/* ── ▌ SEARCH TAB ────────────────────────────── */
+.search-wrap{position:relative;margin-bottom:18px}
+.search-input{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--rl);padding:15px 48px 15px 48px;color:var(--txt);font-size:15px;transition:all .2s}
+.search-input:focus{border-color:var(--or);box-shadow:0 0 0 3px var(--orglow)}
+.search-input::placeholder{color:var(--txt3)}
+.search-ico{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--txt3)}
+.search-ico svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+.search-x{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--s3);border:none;color:var(--txt3);border-radius:8px;width:28px;height:28px;display:none;align-items:center;justify-content:center;font-size:15px;cursor:pointer;font-family:var(--f)}
+.search-x.vis{display:flex}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;background:var(--s2);border:1.5px solid var(--border);border-radius:20px;padding:8px 16px;font-size:12px;font-weight:700;color:var(--txt2);white-space:nowrap;cursor:pointer;transition:all .2s;font-family:var(--f)}
+.chip.on,.chip:hover{background:rgba(255,106,0,.1);border-color:var(--or);color:var(--or)}
+#srch-load{display:none;text-align:center;padding:40px 0}
+.spinner{width:40px;height:40px;border:3px solid var(--s3);border-top-color:var(--or);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+#srch-results{display:none}
+/* ── NEC RESULT CARD ── */
+.nec-card{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--rxl);padding:0;margin-bottom:14px;box-shadow:var(--sr);overflow:hidden;animation:fadeUp .4s ease}
+.nec-card-top{background:linear-gradient(135deg,rgba(255,106,0,.12),rgba(255,133,0,.06));border-bottom:1px solid var(--border);padding:18px 20px 16px}
+.nec-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,106,0,.18);color:var(--or);border:1px solid rgba(255,106,0,.35);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:900;letter-spacing:.8px;margin-bottom:12px;text-transform:uppercase}
+.nec-title{font-size:17px;font-weight:900;margin-bottom:6px;line-height:1.3}
+.nec-source-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nec-source-badge{display:inline-flex;align-items:center;gap:4px;background:var(--s3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.3px}
+.nec-card-body{padding:20px}
+.nec-section-block{margin-bottom:18px}
+.nec-section-block:last-child{margin-bottom:0}
+.nec-section-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:10px;font-size:12px;font-weight:900;letter-spacing:.4px;text-transform:uppercase}
+.nec-section-hdr.article{background:rgba(255,106,0,.1);color:var(--or);border:1px solid rgba(255,106,0,.2)}
+.nec-section-hdr.regs{background:rgba(59,130,246,.09);color:#60A5FA;border:1px solid rgba(59,130,246,.2)}
+.nec-section-hdr.field{background:rgba(34,197,94,.08);color:#4ADE80;border:1px solid rgba(34,197,94,.18)}
+.nec-section-hdr.table{background:rgba(139,92,246,.09);color:#A78BFA;border:1px solid rgba(139,92,246,.2)}
+.nec-reg-item{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--s3);font-size:13px;color:var(--txt2);line-height:1.55}
+.nec-reg-item:last-child{border-bottom:none}
+.nec-reg-dot{width:6px;height:6px;background:var(--or);border-radius:50%;flex-shrink:0;margin-top:6px}
+.nec-field-text{font-size:13px;color:var(--txt2);line-height:1.65;background:var(--s3);border-radius:10px;padding:14px;border-left:3px solid var(--ok)}
+.nec-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nec-table{width:100%;border-collapse:collapse;font-size:12px}
+.nec-table th{background:var(--s3);color:var(--txt2);font-weight:700;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.nec-table td{padding:7px 10px;border-bottom:1px solid var(--s3);color:var(--txt);vertical-align:top}
+.nec-table tr:last-child td{border-bottom:none}
+.nec-table tr:hover td{background:rgba(255,106,0,.04)}
+.nec-related-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.nec-slbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.nec-item{display:flex;gap:8px;font-size:12px;color:var(--txt2);padding:3px 0;line-height:1.4}
+/* Streaming cursor */
+.stream-cursor::after{content:'▌';color:var(--or);animation:boltPulse 0.6s ease-in-out infinite}
+.recent-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--s3);cursor:pointer}
+.recent-item:last-child{border-bottom:none}
+.recent-ico{width:32px;height:32px;background:var(--s3);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── ▌ HISTORY TAB ───────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px}
+.stat-box{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px;text-align:center;box-shadow:var(--sc)}
+.stat-val{font-size:24px;font-weight:900;color:var(--or)}
+.stat-lbl{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.hist-item{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:11px;display:flex;box-shadow:var(--sc);cursor:pointer;transition:all .2s}
+.hist-item:hover{transform:translateY(-1px);box-shadow:var(--sr)}
+.hist-thumb{width:80px;height:80px;background:var(--s3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hist-info{flex:1;padding:13px 15px}
+.hist-date{font-size:11px;color:var(--txt3);margin-bottom:3px;font-weight:700}
+.hist-ttl{font-size:14px;font-weight:800;margin-bottom:4px}
+.hist-meta{display:flex;align-items:center;gap:8px}
+.hbadge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px}
+.hb-crit{background:rgba(239,68,68,.14);color:#EF4444}
+.hb-ok{background:rgba(34,197,94,.14);color:#22C55E}
+.empty-state{text-align:center;padding:56px 20px}
+.empty-ico{font-size:48px;margin-bottom:12px}
+.empty-ttl{font-size:18px;font-weight:800;margin-bottom:8px}
+.empty-txt{font-size:13px;color:var(--txt2)}
+
+/* ── ▌ SAVED TAB ─────────────────────────────── */
+#tab-saved{display:none}
+
+/* ── ▌ PROFILE TAB ───────────────────────────── */
+.prof-hdr{background:var(--s1);border:1.5px solid var(--border);border-radius:var(--rxl);padding:22px;display:flex;align-items:center;gap:16px;margin-bottom:14px;box-shadow:var(--sc)}
+.avatar{width:62px;height:62px;background:linear-gradient(135deg,var(--or),var(--or2));border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:var(--sor)}
+.prof-role{display:inline-flex;background:rgba(255,106,0,.1);border:1px solid rgba(255,106,0,.22);color:var(--or);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:800;margin-top:6px}
+.sub-card{background:linear-gradient(135deg,var(--s1),var(--s2));border:2px solid var(--or);border-radius:var(--rxl);padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.sub-card::after{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,106,0,.14),transparent);border-radius:50%}
+.sub-dot-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sub-dot{width:8px;height:8px;background:var(--ok);border-radius:50%;box-shadow:0 0 8px var(--ok)}
+.sub-active-lbl{font-size:12px;font-weight:800;color:var(--ok);text-transform:uppercase;letter-spacing:.6px}
+.sgrp{background:var(--s1);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--sc);margin-bottom:8px}
+.sitem{display:flex;align-items:center;gap:13px;padding:15px 16px;border-bottom:1px solid var(--s3);cursor:pointer;transition:background .15s}
+.sitem:last-child{border-bottom:none}
+.sitem:hover{background:var(--s3)}
+.sitem-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sitem-ico svg{width:18px;height:18px}
+.sitem-lbl{font-size:14px;font-weight:700}
+.sitem-val{font-size:12px;color:var(--txt3);margin-top:1px}
+.stoggle{width:44px;height:26px;background:var(--s3);border-radius:13px;position:relative;transition:background .3s;cursor:pointer;flex-shrink:0}
+.stoggle.on{background:var(--or)}
+.stoggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .3s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.stoggle.on::after{left:21px}
+.slbl-hdr{font-size:11px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;padding:0 4px 8px}
+
+/* ── MODAL ───────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);z-index:500;display:none;align-items:flex-end}
+.modal-bg.open{display:flex}
+.modal-sheet{width:100%;background:var(--s1);border-radius:var(--rxl) var(--rxl) 0 0;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));border-top:1px solid var(--border);animation:slideUp .32s cubic-bezier(.34,1.56,.64,1)}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
+
+/* ── TOAST ───────────────────────────────────── */
+#toast-box{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));right:14px;z-index:1000;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:13px 16px;display:flex;align-items:center;gap:10px;box-shadow:var(--sr);font-size:13px;font-weight:600;max-width:282px;animation:toastIn .3s ease forwards}
+.toast.success{border-color:rgba(34,197,94,.3)}
+.toast.error{border-color:rgba(239,68,68,.3)}
+.toast.info{border-color:rgba(255,106,0,.3)}
+.toast.dying{animation:toastOut .3s ease forwards}
+
+/* ── MISC ────────────────────────────────────── */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.mt2{margin-top:8px}.mt4{margin-top:16px}
+.export-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r);padding:14px;color:var(--txt);font-size:14px;font-weight:700;width:100%;margin-bottom:8px;transition:all .2s;font-family:var(--f);cursor:pointer}
+.export-btn:hover{border-color:var(--or);color:var(--or)}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- ═══════════════════════════════════════════
+     LOGIN
+════════════════════════════════════════════ -->
+<div class="screen" id="scr-login">
+  <div class="login-wrap">
+    <div class="logo-shell" id="logo-main">
+      <img src="voltguard/logo.png" alt="No Sparks Code Corrections"
+           style="width:120px;height:120px;object-fit:contain;display:block;
+                  filter:drop-shadow(0 8px 24px rgba(255,106,0,.55)) drop-shadow(0 2px 6px rgba(0,0,0,.5))">
+      <div class="logo-name">
+        <h1>No Sparks</h1>
+        <p>Code Corrections</p>
+      </div>
+      <div class="trial-pill">⚡ 3-Day Free Trial</div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Welcome Back</h2>
+      <p class="auth-sub">Sign in to your account</p>
+      <div class="fgroup">
+        <label class="flabel">Email Address</label>
+        <input type="email" class="finput" id="l-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Password</label>
+        <input type="password" class="finput" id="l-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="forgot-row"><button onclick="showForgot()">Forgot password?</button></div>
+      <button class="btn btn-primary" onclick="doLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Sign In
+      </button>
+      <div class="auth-switch">New here? <button onclick="goSignup()">Start Free Trial</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SIGNUP
+════════════════════════════════════════════ -->
+<div class="screen off" id="scr-signup">
+  <div style="background:radial-gradient(ellipse at 50% -5%,#2d1500 0%,#111 65%);min-height:100vh;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:max(24px,env(safe-area-inset-top)) 24px 32px">
+    <div class="signup-wrap">
+      <div class="back-row">
+        <button class="back-btn" onclick="goLogin()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div><div style="font-size:20px;font-weight:900">Create Account</div><div style="font-size:13px;color:var(--txt2)">3-day free trial · then $3.99/mo</div></div>
+      </div>
+      <div class="auth-card" style="animation:fadeUp .4s ease">
+        <div class="trial-info-box">
+          <div style="font-size:22px">⚡</div>
+          <div><div style="font-size:13px;font-weight:800;color:var(--or)">Your Free Trial Includes</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.55">Unlimited AI scans · Full NEC 2023 database · Violation reports · PDF export · No credit card required</div></div>
+        </div>
+        <div class="fgroup"><label class="flabel">Full Name</label><input type="text" class="finput" id="s-name" placeholder="John Smith" autocomplete="name"></div>
+        <div class="fgroup"><label class="flabel">Email Address</label><input type="email" class="finput" id="s-email" placeholder="you@company.com" autocomplete="email"></div>
+        <div class="fgroup"><label class="flabel">Company / License # <span style="color:var(--txt3);font-weight:400">(optional)</span></label><input type="text" class="finput" id="s-company" placeholder="ABC Electric LLC · Lic #123456"></div>
+        <div class="fgroup"><label class="flabel">Password</label><input type="password" class="finput" id="s-pass" placeholder="Minimum 8 characters" autocomplete="new-password"></div>
+        <div class="fgroup"><label class="flabel">Confirm Password</label><input type="password" class="finput" id="s-conf" placeholder="Repeat password" autocomplete="new-password"></div>
+        <p class="terms-note">By creating an account you agree to our <span>Terms of Service</span> and <span>Privacy Policy</span>. Trial begins immediately — no credit card needed.</p>
+        <button class="btn btn-primary" onclick="doSignup()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Start Free Trial
+        </button>
+        <div class="auth-switch">Have an account? <button onclick="goLogin()">Sign In</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PAYWALL
+════════════════════════════════════════════ -->
+<div class="screen off" id="scr-paywall">
+  <div style="background:var(--bg);min-height:100vh;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div class="pay-wrap">
+      <div class="pay-icon">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--or)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h2 style="font-size:24px;font-weight:900;margin-bottom:8px">Trial Ended</h2>
+      <p style="color:var(--txt2);font-size:14px;line-height:1.6">Subscribe to keep your projects NEC compliant with unlimited AI-powered inspections.</p>
+      <div class="price-card">
+        <div class="price-big"><sup>$</sup>3.99</div>
+        <div class="price-period">per month · cancel anytime</div>
+        <ul class="feat-list">
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>Unlimited AI photo scans</span></li>
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>Complete 2023 NEC code database</span></li>
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>Detailed violation reports + remedies</span></li>
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>PDF export & job-site sharing</span></li>
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>Full scan history & saved codes</span></li>
+          <li><div class="chk"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span>Priority support</span></li>
+        </ul>
+      </div>
+      <button class="btn btn-primary" onclick="doSubscribe()" style="margin-bottom:12px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Subscribe Now — $3.99/mo
+      </button>
+      <div style="font-size:12px;color:var(--txt3)">🔒 Secured by Stripe · Cancel anytime</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════ -->
+<div class="screen off" id="scr-app">
+
+  <!-- Header -->
+  <div class="app-hdr">
+    <div class="hdr-logo">
+      <div class="hdr-icon" id="hdr-icon" style="background:transparent;box-shadow:none;width:40px;height:40px">
+        <img src="voltguard/logo.png" alt="No Sparks"
+             style="width:40px;height:40px;object-fit:contain;display:block;
+                    filter:drop-shadow(0 2px 8px rgba(255,106,0,.5))">
+      </div>
+      <h2>No Sparks</h2>
+    </div>
+    <div class="hdr-actions">
+      <button class="hdr-btn ntf-dot" title="Notifications" onclick="toast('No new notifications','info')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="hdr-btn" title="API Settings" onclick="openApiModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93L17.66 6.34a8 8 0 0 0-11.31 11.31l-1.41 1.42A10 10 0 0 1 19.07 4.93z"/><path d="M4.93 19.07l1.41-1.41a8 8 0 0 0 11.31-11.31l1.42-1.42A10 10 0 0 1 4.93 19.07z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-body">
+
+    <!-- ── SCAN ── -->
+    <div class="tab-pane on" id="tab-scan">
+      <div class="sec-title">📷 Scan Installation</div>
+      <div class="sec-sub">Capture or upload a photo for instant NEC analysis</div>
+
+      <div class="drop-zone" id="dropzone" onclick="dzClick()" ondragover="dzDrag(event)" ondrop="dzDrop(event)" ondragleave="dzLeave()">
+        <div class="dz-inner" id="dz-empty">
+          <div class="dz-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--or)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <div style="font-size:16px;font-weight:800">Drop Photo Here</div>
+          <div style="font-size:13px;color:var(--txt2)">or choose an option below</div>
+        </div>
+        <div id="img-prev">
+          <img id="prev-img" src="" alt="Preview">
+          <div class="prev-ovl">
+            <div style="display:flex;gap:8px;width:100%">
+              <button class="btn-outline" style="flex:1;padding:10px;font-size:13px" onclick="clearImg(event)">Change Photo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scan-opts">
+        <button class="sopt" onclick="openCam()">
+          <div class="sopt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--or)" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+          <div><div style="font-size:13px">Take Photo</div><div style="font-size:11px;color:var(--txt3)">Use camera</div></div>
+        </button>
+        <button class="sopt" onclick="openFile()">
+          <div class="sopt-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--or)" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
+          <div><div style="font-size:13px">Upload Photo</div><div style="font-size:11px;color:var(--txt3)">From device</div></div>
+        </button>
+      </div>
+
+      <input type="file" id="cam-inp" accept="image/*" capture="environment" style="display:none" onchange="onFile(this)">
+      <input type="file" id="file-inp" accept="image/*" style="display:none" onchange="onFile(this)">
+
+      <div id="btn-analyze">
+        <button class="analyze-btn" onclick="doAnalyze()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          Analyze for NEC Violations
+        </button>
+      </div>
+
+      <!-- Scanning UI -->
+      <div id="scanning">
+        <div class="scan-anim">
+          <div class="scan-grid-bg"></div>
+          <div class="scan-ln"></div>
+          <div class="sc-tl"></div><div class="sc-tr"></div>
+          <div class="sc-bl"></div><div class="sc-br"></div>
+        </div>
+        <div style="font-size:14px;color:var(--txt2);font-weight:600" id="scan-status">Analyzing electrical installation...</div>
+        <div class="scan-prog"><div class="scan-prog-bar" id="scan-bar"></div></div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:8px">Cross-referencing NEC 2023 Edition</div>
+      </div>
+
+      <!-- Results -->
+      <div id="results">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="sec-title">Analysis Results</div>
+          <button class="btn-ghost" onclick="clearResults()">New Scan</button>
+        </div>
+
+        <div class="score-row">
+          <div class="score-ring" id="score-ring"><span id="score-num">--</span><span class="score-lbl">SAFETY</span></div>
+          <div><h3 id="score-title" style="font-size:16px;font-weight:800;margin-bottom:4px">Analyzing...</h3><p id="score-desc" style="font-size:13px;color:var(--txt2);line-height:1.45"></p></div>
+        </div>
+
+        <div id="viols-list"></div>
+
+        <div class="pos-card" id="pos-card" style="display:none">
+          <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Compliant Observations</h4>
+          <div id="pos-list"></div>
+        </div>
+
+        <div style="margin-top:14px">
+          <button class="export-btn" onclick="doExport()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Export PDF Report
+          </button>
+          <button class="export-btn" onclick="doShare()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share Results
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SEARCH ── -->
+    <div class="tab-pane" id="tab-search">
+      <div class="sec-title">🔍 NEC Code Search</div>
+      <div class="sec-sub">Look up any article, section, or keyword</div>
+
+      <div class="search-wrap">
+        <div class="search-ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+        <input type="text" class="search-input" id="nec-inp" placeholder="e.g. '310.15', 'box fill calc', 'AFCI protection', 'grounding electrode'…" onkeydown="if(event.key==='Enter')doSearch()" oninput="onSearchInput(this)">
+        <button class="search-x" id="search-x" onclick="clearSearch()">✕</button>
+      </div>
+
+      <div class="chips" id="chips-row">
+        <button class="chip on" onclick="chipSearch(this,'Wiring Methods')">Wiring Methods</button>
+        <button class="chip" onclick="chipSearch(this,'Grounding & Bonding')">Grounding</button>
+        <button class="chip" onclick="chipSearch(this,'AFCI Protection')">AFCI</button>
+        <button class="chip" onclick="chipSearch(this,'GFCI Protection')">GFCI</button>
+        <button class="chip" onclick="chipSearch(this,'Service Panel Clearance')">Panel Clearance</button>
+        <button class="chip" onclick="chipSearch(this,'Conduit Fill Calculation')">Conduit Fill</button>
+        <button class="chip" onclick="chipSearch(this,'Box Fill Calculation')">Box Fill</button>
+        <button class="chip" onclick="chipSearch(this,'Wire Sizing Ampacity')">Wire Sizing</button>
+        <button class="chip" onclick="chipSearch(this,'Outdoor Receptacles')">Outdoor Outlets</button>
+      </div>
+
+      <div id="srch-load"><div class="spinner"></div><div style="color:var(--txt2);font-size:14px">Searching NEC database...</div></div>
+      <div id="srch-results"></div>
+
+      <div class="card" id="recent-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:800">Recent Searches</div>
+          <button class="btn-ghost" style="font-size:12px" onclick="clearRecent()">Clear</button>
+        </div>
+        <div id="recent-list"><div style="color:var(--txt3);font-size:13px;text-align:center;padding:18px 0">No recent searches</div></div>
+      </div>
+    </div>
+
+    <!-- ── HISTORY ── -->
+    <div class="tab-pane" id="tab-history">
+      <div class="sec-title">📋 Scan History</div>
+      <div class="sec-sub">All previous NEC inspections</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Scans</div></div>
+        <div class="stat-box"><div class="stat-val" id="st-viols">0</div><div class="stat-lbl">Violations</div></div>
+        <div class="stat-box"><div class="stat-val" id="st-avg">—</div><div class="stat-lbl">Avg Score</div></div>
+      </div>
+      <div id="hist-list">
+        <div class="empty-state"><div class="empty-ico">📸</div><div class="empty-ttl">No Scans Yet</div><div class="empty-txt">Upload your first electrical installation photo to get started</div></div>
+      </div>
+    </div>
+
+    <!-- ── SAVED ── -->
+    <div class="tab-pane" id="tab-saved">
+      <div class="sec-title">🔖 Saved Codes</div>
+      <div class="sec-sub">Bookmarked NEC articles & sections</div>
+      <div id="saved-list">
+        <div class="empty-state"><div class="empty-ico">🔖</div><div class="empty-ttl">No Saved Codes</div><div class="empty-txt">Search for NEC codes and tap the bookmark icon to save them for quick access</div></div>
+      </div>
+    </div>
+
+    <!-- ── PROFILE ── -->
+    <div class="tab-pane" id="tab-profile">
+      <div class="prof-hdr">
+        <div class="avatar" id="prof-av">JD</div>
+        <div>
+          <div style="font-size:18px;font-weight:900" id="prof-name">John Smith</div>
+          <div style="font-size:13px;color:var(--txt2)" id="prof-email">john@example.com</div>
+          <div class="prof-role">⚡ Licensed Electrician</div>
+        </div>
+      </div>
+
+      <div class="sub-card">
+        <div class="sub-dot-row"><div class="sub-dot"></div><div class="sub-active-lbl" id="sub-status-lbl">Active Subscription</div></div>
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">No Sparks Pro</div>
+        <div style="font-size:13px;color:var(--txt2)" id="sub-renew">$3.99/mo · cancel anytime</div>
+        <button class="btn-outline" style="margin-top:14px;font-size:13px;padding:11px" onclick="manageSubscription()">Manage Subscription</button>
+      </div>
+
+      <div style="margin-bottom:6px"><div class="slbl-hdr">Account</div>
+        <div class="sgrp">
+          <div class="sitem" onclick="editProfile()">
+            <div class="sitem-ico" style="background:rgba(59,130,246,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+            <div><div class="sitem-lbl">Edit Profile</div><div class="sitem-val">Name, email, license #</div></div>
+            <div style="color:var(--txt3);font-size:20px;margin-left:auto">›</div>
+          </div>
+          <div class="sitem" onclick="openApiModal()">
+            <div class="sitem-ico" style="background:rgba(255,106,0,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--or)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+            <div><div class="sitem-lbl">API Configuration</div><div class="sitem-val">OpenAI key settings</div></div>
+            <div style="color:var(--txt3);font-size:20px;margin-left:auto">›</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:6px"><div class="slbl-hdr">Preferences</div>
+        <div class="sgrp">
+          <div class="sitem">
+            <div class="sitem-ico" style="background:rgba(245,158,11,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+            <div><div class="sitem-lbl">Push Notifications</div><div class="sitem-val">NEC updates & alerts</div></div>
+            <div class="stoggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="sitem">
+            <div class="sitem-ico" style="background:rgba(34,197,94,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div><div class="sitem-lbl">Save Scan History</div><div class="sitem-val">Store results locally</div></div>
+            <div class="stoggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="sitem" onclick="toast('NEC 2023 edition selected','info')">
+            <div class="sitem-ico" style="background:rgba(139,92,246,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div><div class="sitem-lbl">NEC Edition</div><div class="sitem-val">2023 NEC (latest)</div></div>
+            <div style="color:var(--txt3);font-size:20px;margin-left:auto">›</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:6px"><div class="slbl-hdr">Support</div>
+        <div class="sgrp">
+          <div class="sitem" onclick="toast('Support: help@nosparkscorrections.com','info')">
+            <div class="sitem-ico" style="background:rgba(59,130,246,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <div><div class="sitem-lbl">Help & Support</div><div class="sitem-val">FAQs · contact us</div></div>
+            <div style="color:var(--txt3);font-size:20px;margin-left:auto">›</div>
+          </div>
+          <div class="sitem" onclick="toast('Thanks for the love! ⭐⭐⭐⭐⭐','success')">
+            <div class="sitem-ico" style="background:rgba(245,158,11,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+            <div><div class="sitem-lbl">Rate No Sparks</div><div class="sitem-val">Share your experience</div></div>
+            <div style="color:var(--txt3);font-size:20px;margin-left:auto">›</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px"><div class="sgrp">
+        <div class="sitem" onclick="doLogout()" style="color:var(--danger)">
+          <div class="sitem-ico" style="background:rgba(239,68,68,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+          <div><div class="sitem-lbl" style="color:var(--danger)">Sign Out</div></div>
+        </div>
+      </div></div>
+
+      <div style="text-align:center;padding:16px 0 4px;color:var(--txt3);font-size:12px;line-height:1.8">
+        No Sparks Code Corrections v1.0.0 · NEC 2023 Edition<br>
+        <span style="color:var(--or)">⚡</span> Powered by OpenAI GPT-4o Vision
+      </div>
+    </div>
+  </div><!-- /tab-body -->
+
+  <!-- Bottom Nav -->
+  <nav class="bnav">
+    <button class="nitem" id="n-history" onclick="tab('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-3"/><polyline points="3 3 3 9 9 9"/></svg>History
+    </button>
+    <button class="nitem" id="n-search" onclick="tab('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search
+    </button>
+    <button class="nitem fab on" id="n-scan" onclick="tab('scan')">
+      <div class="fab-ring"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      Scan
+    </button>
+    <button class="nitem" id="n-saved" onclick="tab('saved')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Saved
+    </button>
+    <button class="nitem" id="n-profile" onclick="tab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </button>
+  </nav>
+</div><!-- /scr-app -->
+
+<!-- ═══════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════ -->
+<div class="modal-bg" id="modal-api">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 style="font-size:18px;font-weight:900;margin-bottom:6px">API Configuration</h3>
+    <p style="color:var(--txt2);font-size:13px;margin-bottom:18px">Enter your OpenAI API key to enable AI-powered NEC violation scanning.</p>
+    <div class="fgroup"><label class="flabel">OpenAI API Key</label><input type="password" class="finput" id="api-inp" placeholder="sk-…" autocomplete="off"></div>
+    <div style="background:rgba(255,106,0,.07);border:1px solid rgba(255,106,0,.2);border-radius:10px;padding:12px;font-size:12px;color:var(--txt2);margin-bottom:18px;line-height:1.55">🔐 Your key is stored locally only — never sent to our servers. For production deployment, use a backend proxy for security.</div>
+    <button class="btn btn-primary" onclick="saveApiKey()" style="margin-bottom:10px">Save API Key</button>
+    <button class="btn-outline" onclick="closeModal('modal-api')">Cancel</button>
+  </div>
+</div>
+
+<div id="toast-box"></div>
+
+</div><!-- /root -->
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const S = {
+  user: null,
+  apiKey: localStorage.getItem('vg_key') || '',
+  img64: null,
+  results: null,
+  history: JSON.parse(localStorage.getItem('vg_hist') || '[]'),
+  searches: JSON.parse(localStorage.getItem('vg_srch') || '[]'),
+  saved: JSON.parse(localStorage.getItem('vg_saved') || '[]'),
+};
+
+// ─────────────────────────────────────────────
+// SCREEN
+// ─────────────────────────────────────────────
+function showScr(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.classList.add('off'); s.classList.remove('right'); });
+  document.getElementById(id).classList.remove('off', 'right');
+}
+function goLogin() { showScr('scr-login'); resetLogoAnim(); }
+function goSignup() { showScr('scr-signup'); }
+
+function resetLogoAnim() {
+  const l = document.getElementById('logo-main');
+  l.classList.remove('fly-out');
+  l.style.animation = 'none';
+  l.offsetHeight;
+  l.style.animation = '';
+}
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+function doLogin() {
+  const em = document.getElementById('l-email').value.trim();
+  const pw = document.getElementById('l-pass').value;
+  if (!em || !pw) { toast('Please fill in all fields','error'); return; }
+  if (!validEmail(em)) { toast('Enter a valid email','error'); return; }
+  const users = JSON.parse(localStorage.getItem('vg_users') || '[]');
+  const u = users.find(x => x.email === em);
+  if (!u || u.pw !== btoa(pw)) { toast('Incorrect email or password','error'); return; }
+  S.user = u;
+  localStorage.setItem('vg_sess', JSON.stringify(u));
+  const logo = document.getElementById('logo-main');
+  logo.classList.add('fly-out');
+  if (navigator.vibrate) navigator.vibrate([40, 25, 70]);
+  setTimeout(() => {
+    const days = daysSince(u.created);
+    if (days > 3 && !u.sub) showScr('scr-paywall');
+    else enterApp();
+  }, 720);
+}
+
+function doSignup() {
+  const name = document.getElementById('s-name').value.trim();
+  const em   = document.getElementById('s-email').value.trim();
+  const pw   = document.getElementById('s-pass').value;
+  const cf   = document.getElementById('s-conf').value;
+  if (!name || !em || !pw) { toast('Please fill in all required fields','error'); return; }
+  if (!validEmail(em)) { toast('Enter a valid email address','error'); return; }
+  if (pw.length < 8) { toast('Password must be at least 8 characters','error'); return; }
+  if (pw !== cf) { toast('Passwords do not match','error'); return; }
+  const users = JSON.parse(localStorage.getItem('vg_users') || '[]');
+  if (users.find(x => x.email === em)) { toast('Email already registered','error'); return; }
+  const u = { id: Date.now()+'', name, email: em, company: document.getElementById('s-company').value.trim(), pw: btoa(pw), created: new Date().toISOString(), sub: false };
+  users.push(u);
+  localStorage.setItem('vg_users', JSON.stringify(users));
+  S.user = u;
+  localStorage.setItem('vg_sess', JSON.stringify(u));
+  toast('Welcome to No Sparks Code Corrections! 🎉','success');
+  setTimeout(() => enterApp(), 600);
+}
+
+function doLogout() {
+  if (!confirm('Sign out?')) return;
+  localStorage.removeItem('vg_sess');
+  S.user = null;
+  goLogin();
+  toast('Signed out','info');
+}
+
+function enterApp() {
+  showScr('scr-app');
+  updateProfile();
+  renderHistory();
+  renderRecent();
+}
+
+function daysSince(iso) { return Math.floor((Date.now() - new Date(iso)) / 86400000); }
+function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function showForgot() { toast('Password reset link sent to your email','info'); }
+
+// ─────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────
+function tab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nitem').forEach(n => n.classList.remove('on'));
+  document.getElementById('tab-' + id).classList.add('on');
+  document.getElementById('n-' + id).classList.add('on');
+}
+
+// ─────────────────────────────────────────────
+// SCAN / UPLOAD
+// ─────────────────────────────────────────────
+function dzClick() { if (!S.img64) openFile(); }
+function openCam()  { document.getElementById('cam-inp').click(); }
+function openFile() { document.getElementById('file-inp').click(); }
+
+function dzDrag(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('drag'); }
+function dzLeave()  { document.getElementById('dropzone').classList.remove('drag'); }
+function dzDrop(e)  { e.preventDefault(); dzLeave(); if (e.dataTransfer.files[0]) loadImgFile(e.dataTransfer.files[0]); }
+
+function onFile(inp) { if (inp.files[0]) loadImgFile(inp.files[0]); }
+
+function loadImgFile(f) {
+  if (!f.type.startsWith('image/')) { toast('Please select an image file','error'); return; }
+  const r = new FileReader();
+  r.onload = e => {
+    const full = e.target.result;
+    S.img64 = full.split(',')[1];
+    document.getElementById('prev-img').src = full;
+    document.getElementById('dz-empty').style.display = 'none';
+    document.getElementById('img-prev').style.display = 'block';
+    document.getElementById('dropzone').classList.add('loaded');
+    document.getElementById('btn-analyze').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('scanning').style.display = 'none';
+    toast('Image ready — tap Analyze to scan','success');
+    if (navigator.vibrate) navigator.vibrate(25);
+  };
+  r.readAsDataURL(f);
+}
+
+function clearImg(e) {
+  if (e) e.stopPropagation();
+  S.img64 = null;
+  document.getElementById('prev-img').src = '';
+  document.getElementById('dz-empty').style.display = 'flex';
+  document.getElementById('img-prev').style.display = 'none';
+  document.getElementById('dropzone').classList.remove('loaded','drag');
+  document.getElementById('btn-analyze').style.display = 'none';
+  document.getElementById('cam-inp').value = '';
+  document.getElementById('file-inp').value = '';
+}
+
+function clearResults() { clearImg(null); document.getElementById('results').style.display = 'none'; }
+
+// ─────────────────────────────────────────────
+// AI ANALYSIS
+// ─────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// 5-ZONE NEC INSPECTION ENGINE
+// ════════════════════════════════════════════════════════════
+async function doAnalyze() {
+  if (!S.img64) { toast('Select an image first','error'); return; }
+  if (!S.apiKey) { openApiModal(); toast('Configure your OpenAI API key first','info'); return; }
+
+  document.getElementById('btn-analyze').style.display = 'none';
+  document.getElementById('results').style.display     = 'none';
+  document.getElementById('scanning').style.display    = 'block';
+
+  // Status messages aligned to the 5 inspection zones
+  const msgs = [
+    '🔌 Zone 1 — Scanning conductor & wiring integrity…',
+    '📦 Zone 2 — Inspecting boxes, cabinets & fittings…',
+    '🔩 Zone 3 — Evaluating support & securing methods…',
+    '🌧  Zone 4 — Checking environment & equipment ratings…',
+    '📏 Zone 5 — Measuring clearances & working space…',
+    '📋 Cross-referencing NEC 2023 codebook…',
+    '⚡ Compiling violation report…'
+  ];
+  let mi = 0;
+  const bar  = document.getElementById('scan-bar');
+  const stat = document.getElementById('scan-status');
+  const iv   = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    stat.textContent    = msgs[mi];
+    bar.style.width     = ((mi + 1) / msgs.length * 88) + '%';
+  }, 1600);
+
+  // ── SYSTEM PROMPT: Master NEC Inspector Identity ──────────
+  const systemPrompt = `You are a master NEC (National Electrical Code) 2023 inspector with 25+ years of field experience conducting AHJ-level inspections. You have an encyclopedic knowledge of every article, table, exception, and annex in the NEC 2023 codebook.
+
+Your inspection philosophy:
+- BE THOROUGH. Never under-report. A missed violation on a real job site can cause fires, electrocution, or failed inspections.
+- CITE PRECISELY. Every violation must reference the exact NEC article and section number.
+- BE SPECIFIC. Describe exactly what you see in the image — not generic code text.
+- ACKNOWLEDGE LIMITS. If image quality prevents verification of specific details (wire gauge, label text, breaker ratings), list those items in the unverifiable section. Do NOT guess or fabricate.
+
+You will evaluate the image using a strict 5-zone inspection protocol. Analyze EVERY VISIBLE DETAIL through each zone lens.`;
+
+  // ── USER PROMPT: 5-Zone Inspection Protocol ───────────────
+  const userPrompt = `Perform a complete 5-zone NEC 2023 inspection on this electrical installation image.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZONE 1 — CONDUCTOR & WIRING INTEGRITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inspect for:
+• Visible wire types and whether they are appropriate for the application
+• Proper color-coding: white/gray for neutral, green/bare for grounding, other colors for ungrounded conductors
+• Exposed insulation damage, nicks, abrasions, burns, or melting
+• Improper stripping — too much insulation removed at terminations or conductors stripped inside conduit
+• Conductor bending radius violations at terminals
+• Mixed wire gauges on the same circuit where prohibited
+• Aluminum conductors on devices not rated for aluminum (CU/AL markings)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZONE 2 — BOXES, CABINETS & FITTINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inspect for:
+• Missing or open knockouts left unsealed (NEC 110.12)
+• Cables or conduit entering without proper connectors, clamps, or bushings
+• Evidence of box fill overcrowding — too many conductors, devices, or fittings for the box volume
+• Missing or improper cover plates on junction or device boxes
+• Grounding and bonding connections inside enclosures — missing ground screws, improper bonding jumpers
+• Splices made outside of approved enclosures
+• Panel interiors: double-tapped breakers, improper neutral/ground bus connections, missing knockouts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZONE 3 — SUPPORT & SECURING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inspect for:
+• NM cable (Romex) unsupported within 12" of boxes or more than every 4.5 ft (NEC 334.30)
+• MC cable support intervals exceeding 6 ft or within 12" of terminations (NEC 330.30)
+• Conduit not secured within 3 ft of boxes and every 10 ft thereafter
+• Cables stapled through rather than across — violating insulation integrity
+• Cables or conduit subject to physical damage without adequate protection
+• Enclosures not properly secured to the mounting surface
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZONE 4 — ENVIRONMENT & EQUIPMENT RATINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inspect for:
+• Standard indoor equipment installed in wet, damp, or corrosive locations without appropriate NEMA/IP rating
+• Receptacles in wet/damp locations without weatherproof covers (NEC 406.9)
+• Non-weatherproof conduit fittings used outdoors
+• Equipment exposed to physical damage without RMC/IMC protection
+• Extension cords used as permanent wiring (NEC 400.12)
+• Service entrance conductors or service equipment exposed to environmental hazards
+• Equipment temperature ratings mismatched to conductor ratings
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ZONE 5 — CLEARANCES & WORKING SPACE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inspect for:
+• Electrical panel or disconnect with insufficient working space clearance (NEC 110.26 — minimum 36" depth, 30" width, 6.5 ft headroom)
+• Storage or obstructions within the dedicated equipment space (NEC 110.26(E))
+• Dedicated equipment space above panel not maintained to structural ceiling
+• Overhead clearance violations above service equipment
+• Minimum separation between live parts and grounded surfaces
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For the remedy field, provide NUMBERED STEPS (as an array of strings, each step starting with a number like "1. De-energize...").
+
+Assign zone numbers 1–5 to each violation based on which inspection zone it belongs to.
+
+Return ONLY valid JSON — no markdown fences, no commentary outside the JSON:
+{
+  "safetyScore": 55,
+  "canAnalyze": true,
+  "overallAssessment": "2-sentence field-level assessment of the overall installation condition",
+  "zones": {
+    "zone1": {"name": "Conductor & Wiring Integrity", "status": "FAIL", "findings": 2},
+    "zone2": {"name": "Boxes, Cabinets & Fittings", "status": "PASS", "findings": 0},
+    "zone3": {"name": "Support & Securing", "status": "WARN", "findings": 1},
+    "zone4": {"name": "Environment & Equipment Ratings", "status": "PASS", "findings": 0},
+    "zone5": {"name": "Clearances & Working Space", "status": "FAIL", "findings": 1}
+  },
+  "violations": [
+    {
+      "id": 1,
+      "zone": 1,
+      "severity": "CRITICAL",
+      "violationName": "Precise name of the hazard or issue",
+      "necReference": "NEC 310.10(F)",
+      "description": "Specific description of what is visible in THIS image that constitutes the violation",
+      "location": "Where in the image this is visible",
+      "remedySteps": [
+        "1. De-energize and lock out the affected circuit at the panel before any work begins.",
+        "2. Specific corrective action step 2.",
+        "3. Specific corrective action step 3.",
+        "4. Re-test and verify compliance before re-energizing."
+      ]
+    }
+  ],
+  "unverifiable": [
+    "Wire gauge at [location] — verify conductor sizing against NEC Table 310.15(B)(16) in the field"
+  ],
+  "positives": ["Compliant observation 1"],
+  "recommendations": ["General recommendation for the installation"]
+}`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${S.apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 4000,
+        temperature: 0.1,  // Precise factual recall — not creative
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: [
+            { type: 'text',      text: userPrompt },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${S.img64}`, detail: 'high' } }
+          ]}
+        ]
+      })
+    });
+    clearInterval(iv); bar.style.width = '100%';
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error?.message || 'API error'); }
+    const data = await res.json();
+    const txt  = data.choices[0].message.content;
+    const jm   = txt.match(/\{[\s\S]*\}/);
+    if (!jm) throw new Error('Invalid response format');
+    const r = JSON.parse(jm[0]);
+    S.results = r;
+    setTimeout(() => {
+      document.getElementById('scanning').style.display = 'none';
+      showResults(r);
+      saveHistory(r);
+      if (navigator.vibrate) navigator.vibrate([50, 40, 90]);
+    }, 500);
+  } catch (err) {
+    clearInterval(iv);
+    document.getElementById('scanning').style.display = 'none';
+    document.getElementById('btn-analyze').style.display = 'block';
+    if (err.message.includes('401') || err.message.includes('key')) { toast('Invalid API key — check settings','error'); openApiModal(); }
+    else if (err.message.includes('429')) toast('Rate limit reached — try again in a moment','error');
+    else toast('Analysis failed: ' + err.message, 'error');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// RESULTS RENDERER — 5-ZONE PROTOCOL OUTPUT
+// ════════════════════════════════════════════════════════════
+function showResults(r) {
+  document.getElementById('results').style.display = 'block';
+
+  // ── Safety Score ────────────────────────────────────────────
+  const score = r.safetyScore || 0;
+  document.getElementById('score-num').textContent = score;
+  const ring = document.getElementById('score-ring');
+  ring.className = 'score-ring ' + (score >= 75 ? 'g' : score >= 50 ? 'w' : 'b');
+  document.getElementById('score-title').textContent =
+    score >= 75 ? '✅ Good Compliance' : score >= 50 ? '⚠️ Needs Attention' : '🚨 Critical Issues Found';
+  document.getElementById('score-desc').textContent = r.overallAssessment || 'AI assessment complete';
+
+  const vl     = document.getElementById('viols-list');
+  const viols  = r.violations || [];
+  vl.innerHTML = '';
+
+  // ── Zone Icons & Colors ─────────────────────────────────────
+  const zoneIcons = { 1:'🔌', 2:'📦', 3:'🔩', 4:'🌧', 5:'📏' };
+  const statusMap  = { FAIL:'fail', WARN:'warn', PASS:'pass' };
+
+  // ── Zone Summary Grid ────────────────────────────────────────
+  if (r.zones) {
+    const zonesHtml = Object.entries(r.zones).map(([key, z]) => {
+      const num  = key.replace('zone','');
+      const cls  = statusMap[z.status] || 'skip';
+      const icon = z.status === 'PASS' ? '✓' : z.status === 'FAIL' ? '✗' : '!';
+      return `<div class="zone-pill ${cls}"><div class="zone-dot"></div><span>${zoneIcons[num] || '⚡'} Zone ${num}: ${z.name.split(' ').slice(-1)[0]}</span><span style="margin-left:auto;font-size:10px">${icon} ${z.findings}</span></div>`;
+    }).join('');
+    vl.innerHTML = `<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:900;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Inspection Zone Summary</div>
+      <div class="zone-grid">${zonesHtml}</div>
+    </div>`;
+  }
+
+  // ── Violation Count Banner ──────────────────────────────────
+  if (viols.length) {
+    const cr = viols.filter(v=>v.severity==='CRITICAL').length;
+    const ma = viols.filter(v=>v.severity==='MAJOR').length;
+    const mi = viols.filter(v=>v.severity==='MINOR').length;
+    vl.innerHTML += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.22);border-radius:var(--r);padding:13px;text-align:center">
+        <div style="font-size:26px;font-weight:900;color:#EF4444;line-height:1">${cr}</div>
+        <div style="font-size:10px;font-weight:900;color:#EF4444;letter-spacing:.6px;margin-top:3px">CRITICAL</div>
+      </div>
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);border-radius:var(--r);padding:13px;text-align:center">
+        <div style="font-size:26px;font-weight:900;color:#F59E0B;line-height:1">${ma}</div>
+        <div style="font-size:10px;font-weight:900;color:#F59E0B;letter-spacing:.6px;margin-top:3px">MAJOR</div>
+      </div>
+      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.22);border-radius:var(--r);padding:13px;text-align:center">
+        <div style="font-size:26px;font-weight:900;color:#3B82F6;line-height:1">${mi}</div>
+        <div style="font-size:10px;font-weight:900;color:#3B82F6;letter-spacing:.6px;margin-top:3px">MINOR</div>
+      </div>
+    </div>`;
+  }
+
+  // ── No Violations ───────────────────────────────────────────
+  if (!viols.length) {
+    vl.innerHTML += `<div style="background:rgba(34,197,94,.05);border:1.5px solid rgba(34,197,94,.2);border-radius:var(--rl);padding:28px;text-align:center;margin-bottom:12px">
+      <div style="font-size:36px;margin-bottom:10px">✅</div>
+      <div style="font-size:16px;font-weight:900;color:var(--ok)">No Violations Detected</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:6px;line-height:1.5">All 5 inspection zones passed. Installation appears compliant with NEC 2023.</div>
+    </div>`;
+  } else {
+    // ── VIOLATION CARDS ─────────────────────────────────────────
+    const zoneNames = {
+      1: 'Conductor & Wiring Integrity',
+      2: 'Boxes, Cabinets & Fittings',
+      3: 'Support & Securing',
+      4: 'Environment & Equipment Ratings',
+      5: 'Clearances & Working Space'
+    };
+
+    viols.forEach((v, i) => {
+      const sevLabel  = v.severity === 'CRITICAL' ? '🚨 CRITICAL VIOLATION' :
+                        v.severity === 'MAJOR'    ? '⚠️ MAJOR VIOLATION'    : '🔵 MINOR VIOLATION';
+      const zoneName  = zoneNames[v.zone] || 'General';
+      const zoneIcon  = zoneIcons[v.zone] || '⚡';
+
+      // Remedy steps — handle both array and string formats
+      let remedyHtml = '';
+      if (Array.isArray(v.remedySteps) && v.remedySteps.length) {
+        remedyHtml = v.remedySteps.map(step => {
+          const match = step.match(/^(\d+)[.)\s](.*)$/);
+          const num   = match ? match[1] : '•';
+          const text  = match ? match[2].trim() : step;
+          return `<div class="remedy-step"><div class="step-num">${num}</div><span>${text}</span></div>`;
+        }).join('');
+      } else if (v.remedy) {
+        remedyHtml = `<div class="remedy-step"><div class="step-num">1</div><span>${v.remedy}</span></div>`;
+      }
+
+      const card = document.createElement('div');
+      card.className = `insp-card sev-${v.severity}`;
+      card.style.animationDelay = (i * .06) + 's';
+      card.style.animation = `fadeUp 0.4s ease ${i * .06}s both`;
+      card.innerHTML = `
+        <div class="insp-sev-bar ${v.severity}">${sevLabel}</div>
+        <div class="insp-zone-tag">${zoneIcon} Zone ${v.zone || '?'} — ${zoneName}</div>
+
+        <!-- ⚠️ VIOLATION DETECTED -->
+        <div class="insp-section">
+          <div class="insp-section-lbl detected">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            ⚠️ VIOLATION DETECTED
+          </div>
+          ${v.location ? `<div class="location-tag">📍 ${v.location}</div>` : ''}
+          <div class="insp-desc">${v.violationName || v.title || 'Violation identified'}</div>
+          ${v.description ? `<div class="insp-desc" style="margin-top:6px;font-size:12px;color:var(--txt3)">${v.description}</div>` : ''}
+        </div>
+
+        <!-- 📚 NEC REFERENCE -->
+        <div class="insp-section">
+          <div class="insp-section-lbl reference">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            📚 NEC REFERENCE
+          </div>
+          <div class="insp-nec-ref">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            ${v.necReference || v.necCode || 'NEC 2023'}
+          </div>
+        </div>
+
+        <!-- 💡 THE REMEDY -->
+        <div class="insp-section">
+          <div class="insp-section-lbl remedy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            💡 THE REMEDY
+          </div>
+          <div class="remedy-steps">${remedyHtml || '<div class="insp-desc">See NEC reference for correction requirements.</div>'}</div>
+        </div>`;
+
+      vl.appendChild(card);
+    });
+  }
+
+  // ── Unverifiable Items Warning ───────────────────────────────
+  const unverify = r.unverifiable || [];
+  if (unverify.length) {
+    const uBlock = document.createElement('div');
+    uBlock.className = 'unverify-card';
+    uBlock.innerHTML = `
+      <div class="unverify-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Items Unverifiable via Photo — Verify in Field
+      </div>
+      ${unverify.map(item => `<div class="unverify-item"><span style="color:#F59E0B;flex-shrink:0;font-size:14px">⚠</span><span>${item}</span></div>`).join('')}`;
+    vl.appendChild(uBlock);
+  }
+
+  // ── Compliant Observations ───────────────────────────────────
+  const pos = r.positives || [];
+  if (pos.length) {
+    document.getElementById('pos-card').style.display = 'block';
+    document.getElementById('pos-list').innerHTML = pos.map(p =>
+      `<div class="pos-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.5" style="flex-shrink:0;margin-top:2px"><polyline points="20 6 9 17 4 12"/></svg>${p}</div>`
+    ).join('');
+  } else {
+    document.getElementById('pos-card').style.display = 'none';
+  }
+
+  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+  const critCount = viols.filter(v=>v.severity==='CRITICAL').length;
+  toast(
+    viols.length
+      ? `${viols.length} violation(s) found — ${critCount} critical`
+      : 'All 5 zones passed inspection',
+    viols.length ? (critCount ? 'error' : 'info') : 'success',
+    4000
+  );
+}
+
+function saveHistory(r) {
+  const h = { id: Date.now()+'', date: new Date().toISOString(), safetyScore: r.safetyScore, violationCount: (r.violations||[]).length, critCount: (r.violations||[]).filter(v=>v.severity==='CRITICAL').length };
+  S.history.unshift(h);
+  if (S.history.length > 50) S.history.pop();
+  localStorage.setItem('vg_hist', JSON.stringify(S.history));
+  renderHistory();
+}
+
+// ─────────────────────────────────────────────
+// NEC SEARCH
+// ─────────────────────────────────────────────
+function onSearchInput(inp) { document.getElementById('search-x').classList.toggle('vis', inp.value.length > 0); }
+function clearSearch() { document.getElementById('nec-inp').value=''; document.getElementById('search-x').classList.remove('vis'); document.getElementById('srch-results').style.display='none'; document.getElementById('recent-card').style.display='block'; }
+function chipSearch(btn, q) { document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); btn.classList.add('on'); document.getElementById('nec-inp').value=q; document.getElementById('search-x').classList.add('vis'); doSearch(q); }
+
+// ── NEC DYNAMIC REFERENCE ENGINE ─────────────────────────────
+// Detects whether the query is an article number or a topic keyword
+// and builds a targeted retrieval prompt accordingly.
+// ──────────────────────────────────────────────────────────────
+function classifyQuery(q) {
+  const articleRx = /^\d{2,3}(\.\d+([A-Z])?)?$/;
+  if (articleRx.test(q.trim())) return 'article';
+  const articleInline = q.match(/(\d{2,3}\.\d+[A-Z]?)/i);
+  if (articleInline) return 'article_inline';
+  return 'topic';
+}
+
+async function doSearch(q) {
+  q = q || document.getElementById('nec-inp').value.trim();
+  if (!q) return;
+  if (!S.apiKey) { openApiModal(); toast('Configure your OpenAI API key to search','info'); return; }
+  saveRecentSearch(q);
+
+  const resultsEl  = document.getElementById('srch-results');
+  const loadEl     = document.getElementById('srch-load');
+  const recentEl   = document.getElementById('recent-card');
+  resultsEl.style.display  = 'none';
+  recentEl.style.display   = 'none';
+  loadEl.style.display     = 'block';
+
+  const qType   = classifyQuery(q);
+  const isExact = qType === 'article' || qType === 'article_inline';
+
+  // ── Step 1: Web-search-style context gathering prompt ──────
+  // We model a two-pass approach:
+  //   Pass A — retrieve raw authoritative NEC content
+  //   Pass B — format into the structured card layout
+  // Both passes are collapsed into one high-fidelity prompt
+  // so the model acts as its own retrieval + summarisation layer.
+
+  const systemPrompt = `You are the No Sparks Code Corrections NEC Reference Engine — a senior master electrician and NEC 2023 code authority with encyclopedic knowledge of every article, table, exception, and informational note in the National Electrical Code 2023 edition.
+
+Your role: when a user queries a code article or topic, you retrieve and synthesise the most authoritative, precise, and field-applicable NEC information available — as if you had just looked it up in the printed 2023 NEC codebook AND cross-referenced it with NFPA 70 official commentary.
+
+CRITICAL RULES:
+1. NEVER return a "not found" or generic error. Always provide the most relevant NEC 2023 content.
+2. For SPECIFIC ARTICLE NUMBERS (e.g. "310.15", "230.79", "250.66"): You MUST return the actual tables, conductor sizing rules, ampacity correction factors, or precise dimensional/clearance requirements — not just a description. Include actual numeric values from NEC tables.
+3. For TOPIC QUERIES (e.g. "AFCI", "box fill", "grounding electrode conductor"): Identify ALL relevant articles and provide the most field-critical requirements.
+4. Always populate the tableData array if the article contains tables (ampacity, conduit fill, box fill, correction factors, etc.)
+5. relatedCodes must contain 3-5 genuinely related articles a field electrician would also reference.
+
+Return ONLY valid JSON — no markdown, no explanation outside the JSON:
+{
+  "articleSection": "NEC 310.15(B)(16)",
+  "fullTitle": "Allowable Ampacities of Insulated Conductors Rated Up to and Including 2000 Volts",
+  "edition": "NEC 2023",
+  "sourceAuthority": "NFPA 70 — National Electrical Code",
+  "keyRegulations": [
+    "Regulation bullet 1 with specific values/sizes/distances",
+    "Regulation bullet 2",
+    "Regulation bullet 3"
+  ],
+  "fieldApplication": "2-3 sentence practical explanation of how this applies on a real job site — written for journeyman electricians.",
+  "tableData": {
+    "caption": "Table caption (e.g. 'Ampacity Table — 60°C through 90°C Rated Conductors')",
+    "headers": ["Column1","Column2","Column3"],
+    "rows": [["val","val","val"],["val","val","val"]]
+  },
+  "exceptions": ["Exception or informational note 1","Exception 2"],
+  "relatedCodes": ["NEC 310.15(B)(3)","NEC 310.15(C)","NEC 240.4"]
+}
+If no meaningful table exists for this article, set tableData to null.`;
+
+  const userPrompt = isExact
+    ? `ARTICLE LOOKUP: "${q}"
+Retrieve the EXACT NEC 2023 content for this article. If it contains ampacity values, conductor sizes, correction factors, fill percentages, or clearance distances — include the full table in tableData. This is a field electrician who needs the actual numbers, not a summary.`
+    : `TOPIC SEARCH: "${q}"
+Identify the primary NEC 2023 article(s) that govern this topic. Return the most critical article as the main result. Include all field-essential requirements, sizing rules, and any associated tables a working electrician would need.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${S.apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 2000,
+        temperature: 0.1,  // Low temp = precise factual recall
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt }
+        ]
+      })
+    });
+    loadEl.style.display = 'none';
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const raw  = data.choices[0].message.content;
+    const jm   = raw.match(/\{[\s\S]*\}/);
+    if (!jm) throw new Error('Malformed response');
+    const parsed = JSON.parse(jm[0]);
+    showSearchResult(parsed, q);
+  } catch(err) {
+    loadEl.style.display = 'none';
+    recentEl.style.display = 'block';
+    if (err.message.includes('401')) { toast('Invalid API key — check settings','error'); openApiModal(); }
+    else toast('Search failed — ' + err.message, 'error');
+  }
+}
+
+function showSearchResult(r, query) {
+  const c = document.getElementById('srch-results');
+
+  // ── TABLE HTML (if present) ────────────────────────────────
+  let tableHTML = '';
+  if (r.tableData && r.tableData.headers && r.tableData.rows?.length) {
+    const hCells = r.tableData.headers.map(h => `<th>${h}</th>`).join('');
+    const bRows  = r.tableData.rows.map(row =>
+      `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+    ).join('');
+    tableHTML = `
+      <div class="nec-section-block">
+        <div class="nec-section-hdr table">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          📊 ${r.tableData.caption || 'Reference Table'}
+        </div>
+        <div class="nec-table-wrap">
+          <table class="nec-table">
+            <thead><tr>${hCells}</tr></thead>
+            <tbody>${bRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  // ── EXCEPTIONS ────────────────────────────────────────────
+  let exceptHTML = '';
+  if (r.exceptions?.length) {
+    exceptHTML = `
+      <div style="margin-top:14px;padding:12px 14px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:10px">
+        <div style="font-size:11px;font-weight:900;color:var(--warn);letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase">⚠ Exceptions &amp; Informational Notes</div>
+        ${r.exceptions.map(e => `<div style="font-size:12px;color:var(--txt2);padding:4px 0;display:flex;gap:8px;line-height:1.45"><span style="color:var(--warn);flex-shrink:0">›</span>${e}</div>`).join('')}
+      </div>`;
+  }
+
+  // ── RELATED CODE CHIPS ────────────────────────────────────
+  let relatedHTML = '';
+  if (r.relatedCodes?.length) {
+    const chips = r.relatedCodes.map(code => {
+      const safe = code.replace(/'/g, "\\'");
+      return `<button class="chip" style="margin:0" onclick="document.getElementById('nec-inp').value='${safe}';document.getElementById('search-x').classList.add('vis');doSearch('${safe}')">${code}</button>`;
+    }).join('');
+    relatedHTML = `
+      <div style="padding-top:16px;border-top:1px solid var(--s3);margin-top:16px">
+        <div style="font-size:11px;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🔗 Related Articles</div>
+        <div class="nec-related-chips">${chips}</div>
+      </div>`;
+  }
+
+  c.innerHTML = `
+    <div class="nec-card">
+
+      <!-- ── CARD HEADER ── -->
+      <div class="nec-card-top">
+        <div class="nec-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          ${r.articleSection || 'NEC Reference'}
+        </div>
+        <div class="nec-title">${r.fullTitle || 'NEC Code Result'}</div>
+        <div class="nec-source-row">
+          <span class="nec-source-badge">📚 ${r.edition || 'NEC 2023'}</span>
+          <span class="nec-source-badge">🏛 ${r.sourceAuthority || 'NFPA 70'}</span>
+          <span class="nec-source-badge" style="color:var(--or);border-color:rgba(255,106,0,.3)">🔍 "${query}"</span>
+        </div>
+      </div>
+
+      <!-- ── CARD BODY ── -->
+      <div class="nec-card-body">
+
+        <!-- 📖 ARTICLE SECTION -->
+        <div class="nec-section-block">
+          <div class="nec-section-hdr article">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            📖 Article Section
+          </div>
+          <div style="font-size:14px;color:var(--txt);font-weight:700;padding:4px 0 2px">${r.articleSection || '—'}</div>
+          <div style="font-size:13px;color:var(--txt2);line-height:1.5;margin-top:2px">${r.fullTitle || ''}</div>
+        </div>
+
+        <!-- 📑 KEY REGULATIONS -->
+        <div class="nec-section-block">
+          <div class="nec-section-hdr regs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            📑 Key Regulations
+          </div>
+          <div>
+            ${(r.keyRegulations || []).map(reg =>
+              `<div class="nec-reg-item"><div class="nec-reg-dot"></div><span>${reg}</span></div>`
+            ).join('') || '<div style="font-size:13px;color:var(--txt3);padding:8px 0">No regulations returned.</div>'}
+          </div>
+        </div>
+
+        <!-- 📊 TABLE (if applicable) -->
+        ${tableHTML}
+
+        <!-- 💡 FIELD APPLICATION -->
+        <div class="nec-section-block">
+          <div class="nec-section-hdr field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            💡 Field Application
+          </div>
+          <div class="nec-field-text">${r.fieldApplication || 'No field application note returned.'}</div>
+        </div>
+
+        <!-- ⚠ EXCEPTIONS -->
+        ${exceptHTML}
+
+        <!-- 🔗 RELATED -->
+        ${relatedHTML}
+
+        <!-- Save button -->
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--s3)">
+          <button class="btn-outline" onclick="saveCode(${JSON.stringify(JSON.stringify(r)).slice(1,-1)})" style="font-size:13px;padding:11px;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Save to My Codes
+          </button>
+        </div>
+
+      </div>
+    </div>`;
+
+  c.style.display = 'block';
+  toast('NEC reference retrieved — ' + (r.articleSection || query), 'success', 2500);
+}
+
+function saveCode(jsonStr) {
+  try {
+    const r = JSON.parse(jsonStr);
+    const exists = S.saved.find(x => x.articleSection === r.articleSection);
+    if (exists) { toast('Already saved to My Codes','info'); return; }
+    S.saved.unshift({ articleSection: r.articleSection, fullTitle: r.fullTitle, savedAt: new Date().toISOString() });
+    localStorage.setItem('vg_saved', JSON.stringify(S.saved));
+    renderSaved();
+    toast('Saved to My Codes ✓','success');
+  } catch { toast('Could not save code','error'); }
+}
+
+function renderSaved() {
+  const el = document.getElementById('saved-list');
+  if (!S.saved.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-ico">🔖</div><div class="empty-ttl">No Saved Codes</div><div class="empty-txt">Search for NEC codes and tap "Save to My Codes" to bookmark them</div></div>';
+    return;
+  }
+  el.innerHTML = S.saved.map((s,i) => `
+    <div class="card" style="animation:fadeUp .3s ease ${i*.04}s both;cursor:pointer" onclick="document.getElementById('nec-inp').value='${s.articleSection}';tab('search');doSearch('${s.articleSection}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <div class="nec-tag" style="margin-bottom:8px">${s.articleSection}</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px">${s.fullTitle || 'NEC Reference'}</div>
+          <div style="font-size:11px;color:var(--txt3)">Saved ${new Date(s.savedAt).toLocaleDateString()}</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)" stroke-width="2" style="flex-shrink:0;margin-top:4px"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>`).join('');
+}
+
+function saveRecentSearch(q) {
+  S.searches = [q, ...S.searches.filter(x=>x!==q)].slice(0,8);
+  localStorage.setItem('vg_srch', JSON.stringify(S.searches));
+  renderRecent();
+}
+
+function renderRecent() {
+  const el = document.getElementById('recent-list');
+  if (!S.searches.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px;text-align:center;padding:18px 0">No recent searches</div>'; return; }
+  el.innerHTML = S.searches.map(s => `<div class="recent-item" onclick="document.getElementById('nec-inp').value='${s}';onSearchInput({value:'${s}'});doSearch('${s}')"><div class="recent-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div style="flex:1;font-size:14px;font-weight:600">${s}</div><div style="color:var(--txt3);font-size:18px">›</div></div>`).join('');
+}
+
+function clearRecent() { S.searches=[]; localStorage.removeItem('vg_srch'); renderRecent(); }
+
+// ─────────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────────
+function renderHistory() {
+  document.getElementById('st-total').textContent = S.history.length;
+  document.getElementById('st-viols').textContent = S.history.reduce((a,h)=>a+(h.violationCount||0),0);
+  if (S.history.length) document.getElementById('st-avg').textContent = Math.round(S.history.reduce((a,h)=>a+(h.safetyScore||0),0)/S.history.length);
+  const el = document.getElementById('hist-list');
+  if (!S.history.length) { el.innerHTML = '<div class="empty-state"><div class="empty-ico">📸</div><div class="empty-ttl">No Scans Yet</div><div class="empty-txt">Upload your first electrical installation photo to get started</div></div>'; return; }
+  el.innerHTML = S.history.map((h,i) => `<div class="hist-item" style="animation:fadeUp .4s ease ${i*.04}s both"><div class="hist-thumb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="hist-info"><div class="hist-date">${fmtDate(h.date)}</div><div class="hist-ttl">Scan #${S.history.length-i}</div><div class="hist-meta"><span class="hbadge ${h.critCount>0?'hb-crit':'hb-ok'}">${h.critCount>0?h.critCount+' Critical':'✓ Clear'}</span><span style="font-size:13px;font-weight:900;color:var(--or)">${h.safetyScore}/100</span></div></div></div>`).join('');
+}
+
+function fmtDate(iso) { return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+// ─────────────────────────────────────────────
+// PROFILE
+// ─────────────────────────────────────────────
+function updateProfile() {
+  if (!S.user) return;
+  const initials = S.user.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('prof-av').textContent = initials;
+  document.getElementById('prof-name').textContent = S.user.name;
+  document.getElementById('prof-email').textContent = S.user.email;
+  const d = daysSince(S.user.created);
+  if (!S.user.sub && d <= 3) { document.getElementById('sub-status-lbl').textContent = `Free Trial — ${3-d} day(s) left`; document.getElementById('sub-renew').textContent = 'Subscribe after trial ends'; }
+}
+function editProfile() { toast('Profile editor coming soon','info'); }
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTION
+// ─────────────────────────────────────────────
+async function doSubscribe() {
+  toast('Redirecting to secure checkout…','info');
+  // ─── STRIPE INTEGRATION ───────────────────────────
+  // 1. Replace 'pk_test_YOUR_KEY' below with your Stripe publishable key
+  // 2. Create a $3.99/mo recurring product in your Stripe Dashboard
+  // 3. Set up a backend endpoint to create a Checkout Session
+  // 4. Redirect: window.location.href = session.url
+  // Example backend call:
+  // const res  = await fetch('/api/create-checkout', { method: 'POST', body: JSON.stringify({ userId: S.user.id }) });
+  // const data = await res.json();
+  // window.location.href = data.checkoutUrl;
+  // ─────────────────────────────────────────────────
+  setTimeout(() => alert('Stripe Setup Required:\n\n1. Add your Stripe publishable key\n2. Create the $3.99/mo subscription product in Stripe Dashboard\n3. Connect a backend to create Checkout Sessions\n\nThe full UI & flow are ready — just wire up your Stripe keys!'), 600);
+}
+function manageSubscription() { toast('Opening customer portal…','info'); }
+
+// ─────────────────────────────────────────────
+// EXPORT / SHARE
+// ─────────────────────────────────────────────
+function doExport() {
+  if (!S.results) return;
+  const r = S.results;
+  const viols2 = r.violations || [];
+  const txt = [
+    'NO SPARKS CODE CORRECTIONS \u2014 NEC INSPECTION REPORT',
+    '='.repeat(54),
+    'Generated  : ' + new Date().toLocaleString(),
+    'Safety Score: ' + r.safetyScore + '/100',
+    '',
+    'OVERALL ASSESSMENT',
+    r.overallAssessment || '',
+    '',
+    'VIOLATIONS: ' + viols2.length + ' (' +
+      viols2.filter(v=>v.severity==='CRITICAL').length + ' Critical, ' +
+      viols2.filter(v=>v.severity==='MAJOR').length + ' Major, ' +
+      viols2.filter(v=>v.severity==='MINOR').length + ' Minor)',
+    '\u2500'.repeat(54),
+    ...viols2.map((v,i) => [
+      '',
+      '#'+(i+1)+' ['+(v.severity||'')+'] Zone '+(v.zone||'?'),
+      '\u26a0\ufe0f  VIOLATION : '+(v.violationName||v.title||''),
+      '\ud83d\udcda  NEC REF   : '+(v.necReference||v.necCode||''),
+      '\ud83d\udccd  LOCATION  : '+(v.location||'See image'),
+      '\ud83d\udca1  REMEDY:',
+      ...(v.remedySteps||[v.remedy||'']).map(s=>'   '+s)
+    ].join('\n')),
+    '',
+    '\u2500'.repeat(54),
+    'FIELD VERIFY ITEMS:',
+    ...(r.unverifiable||[]).map(u=>'  \u26a0 '+u),
+    '',
+    'COMPLIANT OBSERVATIONS:',
+    ...(r.positives||[]).map(p=>'  \u2713 '+p),
+    '',
+    '='.repeat(54),
+    'Powered by No Sparks Code Corrections | NEC 2023',
+  ].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+  a.download = `NEC-Report-${new Date().toISOString().split('T')[0]}.txt`;
+  a.click();
+  toast('Report exported','success');
+}
+
+function doShare() {
+  if (!S.results) return;
+  const txt = `NEC Inspection \u2014 No Sparks Code Corrections\nSafety Score: ${S.results.safetyScore}/100 | Violations: ${(S.results.violations||[]).length}\n${S.results.overallAssessment}`;
+  if (navigator.share) navigator.share({title:'NEC Inspection Report',text:txt});
+  else { navigator.clipboard?.writeText(txt); toast('Results copied to clipboard','success'); }
+}
+
+// ─────────────────────────────────────────────
+// API MODAL
+// ─────────────────────────────────────────────
+function openApiModal() { if (S.apiKey) document.getElementById('api-inp').value=S.apiKey; openModal('modal-api'); }
+function saveApiKey() {
+  const k = document.getElementById('api-inp').value.trim();
+  if (!k) { toast('Please enter a key','error'); return; }
+  if (!k.startsWith('sk-')) { toast('Invalid key format — should start with sk-','error'); return; }
+  S.apiKey = k;
+  localStorage.setItem('vg_key', k);
+  closeModal('modal-api');
+  toast('API key saved ✓','success');
+}
+
+// ─────────────────────────────────────────────
+// MODALS
+// ─────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target===m) m.classList.remove('open'); }));
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+function toast(msg, type='info', dur=3200) {
+  const icons = {success:'✅',error:'❌',info:'⚡',warning:'⚠️'};
+  const box = document.getElementById('toast-box');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span style="flex-shrink:0">${icons[type]||'💬'}</span><span>${msg}</span>`;
+  box.appendChild(t);
+  setTimeout(() => { t.classList.add('dying'); setTimeout(() => t.remove(), 320); }, dur);
+}
+
+// ─────────────────────────────────────────────
+// PWA
+// ─────────────────────────────────────────────
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+let pwaPrompt;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pwaPrompt=e; });
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+(function init() {
+  const sess = localStorage.getItem('vg_sess');
+  if (sess) {
+    try {
+      S.user = JSON.parse(sess);
+      if (daysSince(S.user.created) > 3 && !S.user.sub) showScr('scr-paywall');
+      else enterApp();
+    } catch { goLogin(); }
+  } else goLogin();
+  renderHistory();
+  renderRecent();
+  renderSaved();
+})();
+</script>
+</body>
+</html>
