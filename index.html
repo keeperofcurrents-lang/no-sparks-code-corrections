@@ -1633,28 +1633,86 @@ function updateProfile() {
   document.getElementById('prof-name').textContent = S.user.name;
   document.getElementById('prof-email').textContent = S.user.email;
   const d = daysSince(S.user.created);
-  if (!S.user.sub && d <= 3) { document.getElementById('sub-status-lbl').textContent = `Free Trial — ${3-d} day(s) left`; document.getElementById('sub-renew').textContent = 'Subscribe after trial ends'; }
+  const lbl   = document.getElementById('sub-status-lbl');
+  const renew = document.getElementById('sub-renew');
+  if (S.user.sub) {
+    lbl.textContent   = 'Active Subscription';
+    lbl.style.color   = 'var(--ok)';
+    const renewDate   = S.user.subRenew ? new Date(S.user.subRenew).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    renew.textContent = renewDate ? `Renews ${renewDate} · $3.99/mo` : '$3.99/mo · Cancel anytime';
+  } else if (d <= 3) {
+    const left = Math.max(0, 3 - d);
+    lbl.textContent   = `Free Trial — ${left} day${left===1?'':'s'} left`;
+    lbl.style.color   = 'var(--warn)';
+    renew.textContent = 'Subscribe before your trial ends to keep access';
+  } else {
+    lbl.textContent   = 'Trial Ended';
+    lbl.style.color   = 'var(--danger)';
+    renew.textContent = 'Subscribe to restore full access';
+  }
 }
 function editProfile() { toast('Profile editor coming soon','info'); }
 
 // ─────────────────────────────────────────────
 // SUBSCRIPTION
 // ─────────────────────────────────────────────
-async function doSubscribe() {
-  toast('Redirecting to secure checkout…','info');
-  // ─── STRIPE INTEGRATION ───────────────────────────
-  // 1. Replace 'pk_test_YOUR_KEY' below with your Stripe publishable key
-  // 2. Create a $3.99/mo recurring product in your Stripe Dashboard
-  // 3. Set up a backend endpoint to create a Checkout Session
-  // 4. Redirect: window.location.href = session.url
-  // Example backend call:
-  // const res  = await fetch('/api/create-checkout', { method: 'POST', body: JSON.stringify({ userId: S.user.id }) });
-  // const data = await res.json();
-  // window.location.href = data.checkoutUrl;
-  // ─────────────────────────────────────────────────
-  setTimeout(() => alert('Stripe Setup Required:\n\n1. Add your Stripe publishable key\n2. Create the $3.99/mo subscription product in Stripe Dashboard\n3. Connect a backend to create Checkout Sessions\n\nThe full UI & flow are ready — just wire up your Stripe keys!'), 600);
+// ═══════════════════════════════════════════════════
+// STRIPE PAYMENT LINK INTEGRATION
+// No backend required — Stripe hosts the entire flow
+// ═══════════════════════════════════════════════════
+const STRIPE_CFG = {
+  paymentLink : 'https://buy.stripe.com/9B68wPdWGanHdiS3sS2ZO03',
+  portalLink  : 'REPLACE_WITH_YOUR_STRIPE_PORTAL_LINK',
+};
+
+function doSubscribe() {
+  if (!S.user) { toast('Please sign in first','error'); return; }
+  if (STRIPE_CFG.paymentLink.startsWith('REPLACE')) {
+    toast('Stripe payment coming very soon!','info'); return;
+  }
+  const params = new URLSearchParams({
+    prefilled_email     : S.user.email || '',
+    client_reference_id : S.user.id   || '',
+  });
+  toast('Opening secure Stripe checkout…','info');
+  if (navigator.vibrate) navigator.vibrate(30);
+  setTimeout(() => { window.location.href = STRIPE_CFG.paymentLink+'?'+params.toString(); }, 400);
 }
-function manageSubscription() { toast('Opening customer portal…','info'); }
+
+function manageSubscription() {
+  if (STRIPE_CFG.portalLink.startsWith('REPLACE')) { toast('Billing portal coming soon','info'); return; }
+  toast('Opening billing portal…','info');
+  setTimeout(() => { window.open(STRIPE_CFG.portalLink,'_blank'); }, 400);
+}
+
+// Detects Stripe's ?payment=success return redirect
+function checkPaymentReturn() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('payment') !== 'success') return;
+  window.history.replaceState({}, '', window.location.pathname);
+  if (!S.user) return;
+  S.user.sub      = true;
+  S.user.subStart = new Date().toISOString();
+  S.user.subRenew = new Date(Date.now()+30*86400000).toISOString();
+  localStorage.setItem('vg_sess', JSON.stringify(S.user));
+  const all = JSON.parse(localStorage.getItem('vg_users')||'[]');
+  const idx = all.findIndex(u=>u.id===S.user.id);
+  if (idx>=0){ all[idx]=S.user; localStorage.setItem('vg_users',JSON.stringify(all)); }
+  showPaymentSuccess();
+}
+
+function showPaymentSuccess() {
+  const el = document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;padding:36px;text-align:center';
+  el.innerHTML=`
+    <div style="font-size:80px">⚡</div>
+    <div style="font-size:26px;font-weight:900;background:linear-gradient(135deg,#fff,var(--or2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">You're Pro!</div>
+    <div style="font-size:14px;color:var(--txt2);max-width:300px;line-height:1.65">No Sparks Code Corrections Pro is active. Unlimited AI scans, full NEC 2023 database — everything unlocked.</div>
+    <div style="background:rgba(34,197,94,.1);border:1.5px solid rgba(34,197,94,.3);border-radius:14px;padding:12px 22px;color:var(--ok);font-size:13px;font-weight:800">✓ $3.99/mo · 3-day free trial · Cancel anytime</div>
+    <button onclick="this.parentElement.remove();enterApp()" style="background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;border-radius:16px;padding:18px 40px;font-size:16px;font-weight:900;font-family:var(--f);cursor:pointer;box-shadow:0 4px 24px rgba(255,106,0,.55);margin-top:6px">Start Scanning ⚡</button>`;
+  document.body.appendChild(el);
+  if (navigator.vibrate) navigator.vibrate([60,30,90,30,150]);
+}
 
 // ─────────────────────────────────────────────
 // EXPORT / SHARE
@@ -1767,6 +1825,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pwaPro
   renderHistory();
   renderRecent();
   renderSaved();
+  checkPaymentReturn();   // Handle Stripe ?payment=success redirect
 })();
 </script>
 </body>
